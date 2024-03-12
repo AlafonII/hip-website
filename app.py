@@ -17,17 +17,15 @@ col1, col2, col3 = st.columns([1,2,1])
 
 with col2:
     lyrics = st.text_area('', placeholder="Enter lyrics here...", height=150)
-    submit = st.button('Predict Region')
+    submit = st.button('Predict Region', use_container_width=900)
 
 regions_geojson_paths = {
     "East Coast": ".streamlit/east_coast.geojson",
     "Dirty South": ".streamlit/dirty_south.geojson",
-    "west coast": ".streamlit/west_coast.geojson"
+    "West Coast": ".streamlit/west_coast.geojson"
 }
 
-m = folium.Map(location=[37.0902, -95.7129], zoom_start=4)
-
-def add_geojson_from_file(file_path):
+def add_geojson_from_file(m, file_path):
     with open(file_path) as f:
         geojson_data = json.load(f)
     folium.GeoJson(geojson_data, style_function=lambda feature: {
@@ -36,6 +34,7 @@ def add_geojson_from_file(file_path):
         'weight': 2,
         'fillOpacity': 0.2,
     }).add_to(m)
+    return m
 
 def predict_region(lyrics):
     url = "https://hip-hop-symphony-dos-fmjczwc3wq-ew.a.run.app/predict"
@@ -45,16 +44,29 @@ def predict_region(lyrics):
     else:
         return "Error: Could not retrieve predictions. Please try again."
 
+if 'highest_percentage_value' not in st.session_state:
+    st.session_state['highest_percentage_value'] = 0
 if 'predicted_region' not in st.session_state:
-    st.session_state.predicted_region = None
+    st.session_state['predicted_region'] = None
 
 if submit and lyrics.strip():
     prediction_result = predict_region(lyrics)
     if prediction_result != "Error: Could not retrieve predictions. Please try again.":
-        st.session_state.predicted_region = prediction_result['Region']
-
-if st.session_state.predicted_region and st.session_state.predicted_region in regions_geojson_paths:
-    add_geojson_from_file(regions_geojson_paths[st.session_state.predicted_region])
+        percentages = {key: value for key, value in prediction_result.items() if key.endswith('%')}
+        highest_percentage_key = max(percentages, key=percentages.get)
+        st.session_state['highest_percentage_value'] = percentages[highest_percentage_key]
+        st.session_state['predicted_region'] = prediction_result['Region']
 
 with col2:
+    # Initialize the map here to ensure it gets refreshed each time
+    m = folium.Map(location=[37.0902, -95.7129], zoom_start=4)
+
+    if st.session_state['predicted_region'] and st.session_state['predicted_region'] in regions_geojson_paths:
+        m = add_geojson_from_file(m, regions_geojson_paths[st.session_state['predicted_region']])
+
+    # Display the progress bar based on the stored highest percentage value in the session state
+    if st.session_state['highest_percentage_value'] > 0:
+        st.progress(st.session_state['highest_percentage_value'])
+
+    # Display the map
     st_folium(m, width=900, height=500)
