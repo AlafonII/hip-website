@@ -58,15 +58,18 @@ if submit and lyrics.strip():
         st.session_state['predicted_region'] = prediction_result['Region']
 
 with col2:
-    # Initialize the map here to ensure it gets refreshed each time
-    m = folium.Map(location=[37.0902, -95.7129], zoom_start=4)
+    # Adjust the proportion to give more space to the progress bar
+    progress_bar_col, percentage_text_col = st.columns([2, 0.1])
 
+    with progress_bar_col:
+        if st.session_state['highest_percentage_value'] > 0:
+            st.progress(st.session_state['highest_percentage_value'])
+
+    with percentage_text_col:
+        if st.session_state['highest_percentage_value'] > 0:
+            st.markdown(f"**{st.session_state['highest_percentage_value'] * 100:.0f}%**", unsafe_allow_html=True)
+
+    m = folium.Map(location=[37.0902, -95.7129], zoom_start=4)
     if st.session_state['predicted_region'] and st.session_state['predicted_region'] in regions_geojson_paths:
         m = add_geojson_from_file(m, regions_geojson_paths[st.session_state['predicted_region']])
-
-    # Display the progress bar based on the stored highest percentage value in the session state
-    if st.session_state['highest_percentage_value'] > 0:
-        st.progress(st.session_state['highest_percentage_value'])
-
-    # Display the map
     st_folium(m, width=900, height=500)
