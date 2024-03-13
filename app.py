@@ -4,72 +4,101 @@ from streamlit_folium import st_folium
 import json
 import requests
 
+# Set page config
 st.set_page_config(layout="wide")
 
-new_title = '''
-<p style="font-family:futura; color:#cc0000; font-size: 80px; font-weight: bold; text-align: center; white-space: nowrap; margin-top: -50px;">Categorizing Lyrics</p>
-<hr style="border: 1px solid #cc0000; width: 35%; margin: auto;"/>
-<p style="font-family:futura; color:#cc0000; font-size: 30px; font-weight: bold; text-align: center; white-space: nowrap; margin-top: 20px;">Song lyrics</p>
-'''
-st.markdown(new_title, unsafe_allow_html=True)
+# Page selector
+page = st.sidebar.radio('Navigate', ['Categorizing Lyrics', 'Rap Generator GPT2', 'Rap Generator RNN'])
 
-col1, col2, col3 = st.columns([1,2,1])
+if page == 'Categorizing Lyrics':
+    new_title = '''
+    <p style="font-family:futura; color:#cc0000; font-size: 80px; font-weight: bold; text-align: center; white-space: nowrap; margin-top: -50px;">Categorizing Lyrics</p>
+    <hr style="border: 1px solid #cc0000; width: 35%; margin: auto;"/>
+    <p style="font-family:futura; color:#cc0000; font-size: 30px; font-weight: bold; text-align: center; white-space: nowrap; margin-top: 20px;">Song lyrics</p>
+    '''
+    st.markdown(new_title, unsafe_allow_html=True)
 
-with col2:
-    lyrics = st.text_area('', placeholder="Enter lyrics here...", height=150)
-    submit = st.button('Predict Region', use_container_width=900)
+    col1, col2, col3 = st.columns([1,2,1])
 
-regions_geojson_paths = {
-    "East Coast": ".streamlit/east_coast.geojson",
-    "Dirty South": ".streamlit/dirty_south.geojson",
-    "West Coast": ".streamlit/west_coast.geojson"
-}
+    with col2:
+        lyrics = st.text_area('', placeholder="Enter lyrics here...", height=150)
+        submit = st.button('Predict Region', use_container_width=True)
 
-def add_geojson_from_file(m, file_path):
-    with open(file_path) as f:
-        geojson_data = json.load(f)
-    folium.GeoJson(geojson_data, style_function=lambda feature: {
-        'fillColor': '#cc0000',
-        'color': 'red',
-        'weight': 2,
-        'fillOpacity': 0.2,
-    }).add_to(m)
-    return m
+    regions_geojson_paths = {
+        "East Coast": ".streamlit/east_coast.geojson",
+        "Dirty South": ".streamlit/dirty_south.geojson",
+        "West Coast": ".streamlit/west_coast.geojson"
+    }
 
-def predict_region(lyrics):
-    url = "https://hip-hop-symphony-dos-fmjczwc3wq-ew.a.run.app/predict"
-    response = requests.get(f"{url}?lyrics={lyrics}")
-    if response.status_code == 200:
-        return response.json()
-    else:
-        return "Error: Could not retrieve predictions. Please try again."
+    def add_geojson_from_file(m, file_path):
+        with open(file_path) as f:
+            geojson_data = json.load(f)
+        folium.GeoJson(geojson_data, style_function=lambda feature: {
+            'fillColor': '#cc0000',
+            'color': 'red',
+            'weight': 2,
+            'fillOpacity': 0.2,
+        }).add_to(m)
+        return m
 
-if 'highest_percentage_value' not in st.session_state:
-    st.session_state['highest_percentage_value'] = 0
-if 'predicted_region' not in st.session_state:
-    st.session_state['predicted_region'] = None
+    def predict_region(lyrics):
+        url = "https://hip-hop-symphony-dos-fmjczwc3wq-ew.a.run.app/predict"
+        response = requests.get(f"{url}?lyrics={lyrics}")
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return "Error: Could not retrieve predictions. Please try again."
 
-if submit and lyrics.strip():
-    prediction_result = predict_region(lyrics)
-    if prediction_result != "Error: Could not retrieve predictions. Please try again.":
-        percentages = {key: value for key, value in prediction_result.items() if key.endswith('%')}
-        highest_percentage_key = max(percentages, key=percentages.get)
-        st.session_state['highest_percentage_value'] = percentages[highest_percentage_key]
-        st.session_state['predicted_region'] = prediction_result['Region']
+    if 'highest_percentage_value' not in st.session_state:
+        st.session_state['highest_percentage_value'] = 0
+    if 'predicted_region' not in st.session_state:
+        st.session_state['predicted_region'] = None
 
-with col2:
-    # Adjust the proportion to give more space to the progress bar
-    progress_bar_col, percentage_text_col = st.columns([2, 0.1])
+    if submit and lyrics.strip():
+        prediction_result = predict_region(lyrics)
+        if prediction_result != "Error: Could not retrieve predictions. Please try again.":
+            percentages = {key: value for key, value in prediction_result.items() if key.endswith('%')}
+            highest_percentage_key = max(percentages, key=percentages.get)
+            st.session_state['highest_percentage_value'] = percentages[highest_percentage_key]
+            st.session_state['predicted_region'] = prediction_result['Region']
 
-    with progress_bar_col:
-        if st.session_state['highest_percentage_value'] > 0:
-            st.progress(st.session_state['highest_percentage_value'])
+    with col2:
+        progress_bar_col, percentage_text_col = st.columns([2, 0.1])
 
-    with percentage_text_col:
-        if st.session_state['highest_percentage_value'] > 0:
-            st.markdown(f"**{st.session_state['highest_percentage_value'] * 100:.0f}%**", unsafe_allow_html=True)
+        with progress_bar_col:
+            if st.session_state['highest_percentage_value'] > 0:
+                st.progress(st.session_state['highest_percentage_value'])
 
-    m = folium.Map(location=[37.0902, -95.7129], zoom_start=4)
-    if st.session_state['predicted_region'] and st.session_state['predicted_region'] in regions_geojson_paths:
-        m = add_geojson_from_file(m, regions_geojson_paths[st.session_state['predicted_region']])
-    st_folium(m, width=900, height=500)
+        with percentage_text_col:
+            if st.session_state['highest_percentage_value'] > 0:
+                st.markdown(f"**{st.session_state['highest_percentage_value'] * 100:.0f}%**", unsafe_allow_html=True)
+
+        m = folium.Map(location=[37.0902, -95.7129], zoom_start=4)
+        if st.session_state['predicted_region'] and st.session_state['predicted_region'] in regions_geojson_paths:
+            m = add_geojson_from_file(m, regions_geojson_paths[st.session_state['predicted_region']])
+        st_folium(m, width=900, height=500)
+
+elif page == 'Rap Generator GPT2':
+    new_title = '''
+    <p style="font-family:futura; color:#cc0000; font-size: 80px; font-weight: bold; text-align: center; white-space: nowrap; margin-top: -50px;">Rap Generator GPT2</p>
+    <hr style="border: 1px solid #cc0000; width: 35%; margin: auto;"/>
+    <p style="font-family:futura; color:#cc0000; font-size: 30px; font-weight: bold; text-align: center; white-space: nowrap; margin-top: 20px;">Start of Rap</p>
+    '''
+    st.markdown(new_title, unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1,2,1])
+
+    with col2:
+        lyrics = st.text_area('', placeholder="Enter lyrics here...", height=150)
+        submit = st.button('Start Generating bars!', use_container_width=True)
+
+elif page == 'Rap Generator RNN':
+    new_title = '''
+    <p style="font-family:futura; color:#cc0000; font-size: 80px; font-weight: bold; text-align: center; white-space: nowrap; margin-top: -50px;">Rap Generator RNN</p>
+    <hr style="border: 1px solid #cc0000; width: 35%; margin: auto;"/>
+    <p style="font-family:futura; color:#cc0000; font-size: 30px; font-weight: bold; text-align: center; white-space: nowrap; margin-top: 20px;">Generate Rap</p>
+    '''
+    st.markdown(new_title, unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1,2,1])
+
+    with col2:
+        submit = st.button('Start Generating bars!', use_container_width=True)
