@@ -63,7 +63,11 @@ if page == 'Categorizing Lyrics':
             st.session_state['predicted_region'] = prediction_result['Region']
 
     with col2:
-        progress_bar_col, percentage_text_col = st.columns([2, 0.1])
+        accuracy_column, progress_bar_col, percentage_text_col = st.columns([0.4, 1.4, 0.1])
+
+        with accuracy_column:
+            if st.session_state['highest_percentage_value'] > 0:
+                st.markdown(f"Accuracy of Prediction", unsafe_allow_html=True)
 
         with progress_bar_col:
             if st.session_state['highest_percentage_value'] > 0:
@@ -88,8 +92,27 @@ elif page == 'Rap Generator GPT2':
     col1, col2, col3 = st.columns([1,2,1])
 
     with col2:
-        lyrics = st.text_area('', placeholder="Enter lyrics here...", height=150)
+        lyrics = st.text_area('', placeholder="Enter lyrics here...", height=50)
+        max_length = st.slider("Max Length", min_value=20, max_value=100, value=50)
         submit = st.button('Start Generating bars!', use_container_width=True)
+
+        if submit:
+            encoded_lyrics = requests.utils.quote(lyrics)
+            # Prepare the API request URL
+            api_url = f"https://hip-hop-symphony-gen-fmjczwc3wq-ew.a.run.app/predict_gen_gpt?lyrics={encoded_lyrics}&max_length={max_length}"
+            # Make a GET request to the API
+            response = requests.get(api_url)
+
+            if response.status_code == 200:
+                # Extract the generated lyrics from the response
+                generated_lyrics = response.json().get('lyrics', 'No lyrics generated.')
+                st.markdown(f'''
+                    <div style="background-color: #f0f0f0; padding: 10px; border-radius: 10px;">
+                        <p style="font-size: 20px; margin: 0;">{generated_lyrics}</p>
+                    </div>
+                    ''', unsafe_allow_html=True)
+            else:
+                st.error("Failed to generate lyrics. Please try again.")
 
 elif page == 'Rap Generator RNN':
     new_title = '''
@@ -102,3 +125,20 @@ elif page == 'Rap Generator RNN':
 
     with col2:
         submit = st.button('Start Generating bars!', use_container_width=True)
+
+        if submit:
+            try:
+                response = requests.get('https://hip-hop-symphony-gen-fmjczwc3wq-ew.a.run.app/predict_gen_RNN')
+                data = response.json()
+
+                lyrics = data.get('lyrics', 'No lyrics generated')
+                lyrics_html = lyrics.replace("\n", "<br>")
+                st.markdown(f'''
+                    <div style="background-color: #f0f0f0; padding: 10px; border-radius: 10px;">
+                        <p style="font-size: 20px; margin: 0;">{lyrics_html}</p>
+                    </div>
+                    ''', unsafe_allow_html=True)
+
+
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
