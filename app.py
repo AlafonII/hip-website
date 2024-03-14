@@ -25,9 +25,9 @@ if page == 'Categorizing Lyrics':
         submit = st.button('Predict Region', use_container_width=True)
 
     regions_geojson_paths = {
-        "East Coast": "front/east_coast.geojson",
-        "Dirty South": "front/dirty_south.geojson",
-        "West Coast": "front/west_coast.geojson"
+        "East Coast": ".streamlit/east_coast.geojson",
+        "Dirty South": ".streamlit/dirty_south.geojson",
+        "West Coast": ".streamlit/west_coast.geojson"
     }
 
     def add_geojson_from_file(m, file_path):
